@@ -1,0 +1,286 @@
+<html><head><base href="https://websim.example.com/survey-results-analyzer/">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>アンケート結果集計ツール - カテゴリー編集機能付き</title>
+<style>
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    line-height: 1.6;
+    margin: 0;
+    padding: 20px;
+    background-color: #f0f2f5;
+    color: #333;
+  }
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  }
+  h1, h2 {
+    color: #2c3e50;
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  textarea {
+    width: 100%;
+    height: 150px;
+    margin-bottom: 20px;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    resize: vertical;
+  }
+  button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+    margin-bottom: 10px;
+  }
+  button:hover {
+    background-color: #2980b9;
+  }
+  #resultTable, #categoryTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    box-shadow: 0 2px 3px rgba(0,0,0,0.1);
+  }
+  #resultTable th, #resultTable td, #categoryTable th, #categoryTable td {
+    border: 1px solid #e0e0e0;
+    padding: 12px;
+    text-align: left;
+  }
+  #resultTable th, #categoryTable th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+    color: #2c3e50;
+  }
+  #resultTable tr:nth-child(even), #categoryTable tr:nth-child(even) {
+    background-color: #f8f8f8;
+  }
+  .bar-chart {
+    width: 100%;
+    background-color: #ecf0f1;
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar {
+    height: 24px;
+    background-color: #3498db;
+    text-align: right;
+    padding-right: 8px;
+    color: white;
+    white-space: nowrap;
+    line-height: 24px;
+    font-size: 12px;
+    transition: width 0.5s ease-in-out;
+  }
+  .edit-button {
+    background-color: #27ae60;
+    padding: 5px 10px;
+    font-size: 14px;
+    margin-left: 10px;
+  }
+  .edit-button:hover {
+    background-color: #2ecc71;
+  }
+  #editCategoryModal {
+    display: none;
+    position: fixed;
+    z-index: 1;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+  }
+  .modal-content {
+    background-color: #fefefe;
+    margin: 15% auto;
+    padding: 20px;
+    border: 1px solid #888;
+    width: 80%;
+    max-width: 500px;
+    border-radius: 8px;
+  }
+  .close {
+    color: #aaa;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .close:hover,
+  .close:focus {
+    color: black;
+    text-decoration: none;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <h1>アンケート結果集計ツール</h1>
+    <textarea id="surveyData" placeholder="アンケート結果をここに貼り付けてください。各回答を改行で区切ってください。"></textarea>
+    <button onclick="analyzeSurvey()">結果を分析</button>
+    <h2>カテゴリー設定</h2>
+    <table id="categoryTable"></table>
+    <button onclick="addCategory()">カテゴリーを追加</button>
+    <h2>集計結果</h2>
+    <table id="resultTable"></table>
+  </div>
+
+  <div id="editCategoryModal">
+    <div class="modal-content">
+      <span class="close">&times;</span>
+      <h2>カテゴリーを編集</h2>
+      <input type="text" id="editCategoryInput" placeholder="新しいカテゴリー名を入力">
+      <button onclick="saveCategory()">保存</button>
+    </div>
+  </div>
+
+  <script>
+    let categories = [
+      "新聞が見やすく工夫されている",
+      "新聞の記事が、わかりやすく書かれている。",
+      "班で協力して発表ができている",
+      "ハキハキと聞きやすい。",
+      "説明が分かりづらい"
+    ];
+    let editingIndex = -1;
+
+    function renderCategoryTable() {
+      let tableHTML = `
+        <tr>
+          <th>カテゴリー</th>
+          <th>アクション</th>
+        </tr>
+      `;
+
+      categories.forEach((category, index) => {
+        tableHTML += `
+          <tr>
+            <td>${category}</td>
+            <td>
+              <button class="edit-button" onclick="editCategory(${index})">編集</button>
+              <button class="edit-button" onclick="deleteCategory(${index})">削除</button>
+            </td>
+          </tr>
+        `;
+      });
+
+      document.getElementById('categoryTable').innerHTML = tableHTML;
+    }
+
+    function addCategory() {
+      const newCategory = prompt("新しいカテゴリーを入力してください：");
+      if (newCategory && newCategory.trim() !== "") {
+        categories.push(newCategory.trim());
+        renderCategoryTable();
+      }
+    }
+
+    function editCategory(index) {
+      editingIndex = index;
+      document.getElementById('editCategoryInput').value = categories[index];
+      document.getElementById('editCategoryModal').style.display = "block";
+    }
+
+    function saveCategory() {
+      const newCategory = document.getElementById('editCategoryInput').value.trim();
+      if (newCategory !== "") {
+        categories[editingIndex] = newCategory;
+        renderCategoryTable();
+        document.getElementById('editCategoryModal').style.display = "none";
+      }
+    }
+
+    function deleteCategory(index) {
+      if (confirm("このカテゴリーを削除してもよろしいですか？")) {
+        categories.splice(index, 1);
+        renderCategoryTable();
+      }
+    }
+
+    function analyzeSurvey() {
+      const surveyData = document.getElementById('surveyData').value;
+      const responses = surveyData.split('\n').filter(response => response.trim() !== '');
+
+      const results = categories.map(category => ({
+        category,
+        count: responses.filter(response => response.includes(category)).length,
+        percentage: 0
+      }));
+
+      const totalResponses = responses.length;
+      results.forEach(result => {
+        result.percentage = (result.count / totalResponses) * 100;
+      });
+
+      renderResultTable(results, totalResponses);
+    }
+
+    function renderResultTable(results, totalResponses) {
+      let tableHTML = `
+        <tr>
+          <th>カテゴリー</th>
+          <th>回答数</th>
+          <th>パーセンテージ</th>
+          <th>グラフ</th>
+        </tr>
+      `;
+
+      results.forEach(item => {
+        tableHTML += `
+          <tr>
+            <td>${item.category}</td>
+            <td>${item.count}</td>
+            <td>${item.percentage.toFixed(1)}%</td>
+            <td>
+              <div class="bar-chart">
+                <div class="bar" style="width: 0%">${item.percentage.toFixed(1)}%</div>
+              </div>
+            </td>
+          </tr>
+        `;
+      });
+
+      tableHTML += `
+        <tr>
+          <td colspan="4"><strong>総回答数: ${totalResponses}</strong></td>
+        </tr>
+      `;
+
+      document.getElementById('resultTable').innerHTML = tableHTML;
+
+      // Animate the bars
+      setTimeout(() => {
+        document.querySelectorAll('.bar').forEach((bar, index) => {
+          bar.style.width = `${results[index].percentage}%`;
+        });
+      }, 100);
+    }
+
+    // Close modal when clicking on the close button or outside the modal
+    window.onclick = function(event) {
+      const modal = document.getElementById('editCategoryModal');
+      if (event.target == modal || event.target.className == 'close') {
+        modal.style.display = "none";
+      }
+    }
+
+    // Initial render of category table
+    renderCategoryTable();
+  </script>
+</body></html>
